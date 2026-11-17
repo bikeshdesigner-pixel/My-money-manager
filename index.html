@@ -1,0 +1,394 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#142c45">
+<title>My Money Manager</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef3f8;color:#17283b;font-family:Arial,sans-serif}
+header{background:#142c45;color:white;padding:22px 16px}
+h1{font-size:24px;margin:0 0 5px}
+small{color:#c6d6e6}
+main{max-width:680px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:17px;margin-bottom:14px;box-shadow:0 2px 9px #142c4510}
+h2{font-size:18px;margin:0 0 15px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#eef5fa;padding:12px;border-radius:12px}
+.stat span{display:block;font-size:12px;color:#627387}
+.stat b{font-size:19px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:12px;border:1px solid #ccd7e1;border-radius:9px;margin:5px 0 11px;background:white}
+button{background:#1764aa;color:white;border:0;border-radius:9px;padding:11px 15px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+.secondary{background:#e8eff5;color:#183650}
+.danger{background:#a93030}
+.full{width:100%}
+.item{display:flex;align-items:center;gap:10px;border-bottom:1px solid #edf0f4;padding:11px 0}
+.item:last-child{border:0}
+.item input[type=checkbox]{width:21px;height:21px;margin:0;flex-shrink:0}
+.item .info{flex:1}
+.item .info b{display:block;font-size:14px}
+.item .info span{font-size:12px;color:#697a8d}
+.amount{font-weight:bold;white-space:nowrap}
+.done{opacity:.55}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.note{font-size:12px;color:#677b8d;line-height:1.5}
+.green{color:#16734d}
+.red{color:#ae3636}
+.tabs{display:flex;gap:7px;overflow:auto;margin-bottom:14px}
+.tabs button{white-space:nowrap;background:#dbe6ef;color:#183650}
+.tabs button.active{background:#1764aa;color:white}
+.hidden{display:none}
+.history{font-size:13px;padding:10px 0;border-bottom:1px solid #edf0f4}
+.history:last-child{border:0}
+</style>
+</head>
+<body>
+<header>
+<h1>💰 My Money Manager</h1>
+<small>मेरा पैसा • मेरा हिसाब</small>
+</header>
+<main>
+<div class="tabs">
+<button onclick="tab('home')" id="btn-home">Dashboard</button>
+<button onclick="tab('accounts')" id="btn-accounts">Banks</button>
+<button onclick="tab('history')" id="btn-history">History</button>
+<button onclick="tab('settings')" id="btn-settings">Settings</button>
+</div>
+
+<section id="home">
+<div class="card">
+<h2 id="monthTitle"></h2>
+<div class="stats">
+<div class="stat"><span>Monthly Income</span><b id="income">₹0</b></div>
+<div class="stat"><span>Monthly Expenses</span><b id="expense">₹0</b></div>
+<div class="stat"><span>Monthly Savings</span><b id="saving">₹0</b></div>
+<div class="stat"><span>Total Bank Balance</span><b id="balance">₹0</b></div>
+</div>
+<p class="note" id="remaining"></p>
+</div>
+<div class="card">
+<h2>📥 Income Checklist</h2>
+<div id="incomeList"></div>
+</div>
+<div class="card">
+<h2>📤 Expense & EMI Checklist</h2>
+<div id="expenseList"></div>
+</div>
+<div class="card">
+<h2>💸 Add Transaction</h2>
+<label>Transaction Type</label>
+<select id="txType" onchange="updateTx()">
+<option value="income">Income</option>
+<option value="expense">Expense</option>
+<option value="saving">Transfer to Savings</option>
+<option value="transfer">Bank to Bank Transfer</option>
+</select>
+<label>Description</label>
+<input id="txName" placeholder="Salary, shopping, savings...">
+<label>Amount (₹)</label>
+<input id="txAmount" type="number" min="1" placeholder="Amount">
+<label>From / Main Account</label>
+<select id="txAccount"></select>
+<div id="destinationBox" class="hidden">
+<label>Destination Account</label>
+<select id="txDestination"></select>
+</div>
+<button class="full" onclick="addTransaction()">Save Transaction</button>
+</div>
+</section>
+
+<section id="accounts" class="hidden">
+<div class="card">
+<h2>🏦 My Bank Accounts</h2>
+<div id="accountList"></div>
+</div>
+<div class="card">
+<h2>Add Bank Account</h2>
+<input id="bankName" placeholder="Bank name / Cash / Savings">
+<input id="bankBalance" type="number" min="0" placeholder="Opening balance ₹">
+<button class="full" onclick="addAccount()">Add Account</button>
+</div>
+<p class="note">यहाँ सिर्फ बैंक का नाम और रकम लिखें। अकाउंट नंबर, PIN या पासवर्ड कभी न डालें।</p>
+</section>
+
+<section id="history" class="hidden">
+<div class="card">
+<h2>📜 Transaction History</h2>
+<div id="historyList"></div>
+</div>
+<div class="card">
+<h2>Previous Months</h2>
+<div id="monthHistory"></div>
+</div>
+</section>
+
+<section id="settings" class="hidden">
+<div class="card">
+<h2>⚙️ Monthly Checklist</h2>
+<p class="note">नीचे लिखे amounts आपकी monthly planning के लिए हैं। Income या expense को mark करने पर वास्तविक bank balance अपडेट होगा।</p>
+<div id="templateList"></div>
+<h2>Add Regular Item</h2>
+<select id="newKind">
+<option value="expense">Expense / EMI</option>
+<option value="income">Income</option>
+</select>
+<input id="newName" placeholder="Item name">
+<input id="newAmount" type="number" min="1" placeholder="Amount ₹">
+<button class="full" onclick="addTemplate()">Add to Checklist</button>
+</div>
+<div class="card">
+<h2>🔐 Backup & Restore</h2>
+<p class="note">डेटा इसी browser में रहता है। फोन बदलने, browser data साफ करने या ऐप हटाने से पहले backup डाउनलोड करें।</p>
+<button class="full" onclick="backup()">Download Backup</button>
+<label>Restore Backup (.json)</label>
+<input type="file" accept=".json,application/json" onchange="restore(event)">
+</div>
+</section>
+</main>
+
+<script>
+const KEY='my_money_manager_v1';
+const defaults=[
+['income','Salary',83000],
+['income','Client Income',14800],
+['expense','House Loan EMI',14000],
+['expense','Bike EMI',7600],
+['expense','Car EMI',16000],
+['expense','Mobile EMI',3000],
+['expense','Bike Petrol',1000],
+['expense','Wi-Fi',1200],
+['expense','Mobile Recharge',1000],
+['expense','Groceries / Household',5000],
+['expense','Shopping',2000]
+];
+const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+const month=()=>new Date().toLocaleDateString('en-CA',{year:'numeric',month:'2-digit'}).slice(0,7);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+let data;
+function initial(){
+return {
+currentMonth:month(),
+accounts:[{id:'main',name:'Main Bank',balance:0},{id:'save',name:'Savings Bank',balance:0}],
+templates:defaults.map((x,i)=>({id:'t'+i,kind:x[0],name:x[1],amount:x[2]})),
+checked:{},transactions:[],archives:[]
+};
+}
+function load(){
+try{data=JSON.parse(localStorage.getItem(KEY))||initial()}catch(e){data=initial()}
+if(!data.accounts||!data.templates||!data.transactions){data=initial()}
+data.checked=data.checked||{};
+data.archives=data.archives||[];
+if(data.currentMonth!==month()){
+data.archives.unshift({month:data.currentMonth,summary:summary(),checked:{...data.checked}});
+data.currentMonth=month();
+data.checked={};
+}
+save();
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function summary(){
+let tx=data.transactions.filter(t=>t.month===data.currentMonth);
+return {
+income:tx.filter(t=>t.kind==='income').reduce((s,t)=>s+t.amount,0),
+expense:tx.filter(t=>t.kind==='expense').reduce((s,t)=>s+t.amount,0),
+saving:tx.filter(t=>t.kind==='saving').reduce((s,t)=>s+t.amount,0)
+};
+}
+function account(id){return data.accounts.find(a=>a.id===id)}
+function render(){
+document.getElementById('monthTitle').textContent=
+new Date(data.currentMonth+'-01T12:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+const s=summary();
+document.getElementById('income').textContent=money(s.income);
+document.getElementById('expense').textContent=money(s.expense);
+document.getElementById('saving').textContent=money(s.saving);
+document.getElementById('balance').textContent=money(data.accounts.reduce((v,a)=>v+a.balance,0));
+document.getElementById('remaining').textContent=
+'Income minus expenses: '+money(s.income-s.expense)+' • Savings target: ₹25,000–₹40,000';
+for(const kind of ['income','expense']){
+let el=document.getElementById(kind+'List');
+el.innerHTML='';
+data.templates.filter(t=>t.kind===kind).forEach(t=>{
+let checked=!!data.checked[t.id];
+let row=document.createElement('div');
+row.className='item'+(checked?' done':'');
+let cb=document.createElement('input');
+cb.type='checkbox';cb.checked=checked;
+cb.onchange=()=>mark(t.id,cb.checked);
+let info=document.createElement('div');
+info.className='info';
+info.innerHTML='<b></b><span></span>';
+info.querySelector('b').textContent=t.name;
+info.querySelector('span').textContent=checked?'Recorded':'Pending';
+let amount=document.createElement('div');
+amount.className='amount';
+amount.textContent=money(t.amount);
+row.append(cb,info,amount);
+el.append(row);
+});
+}
+renderAccounts();
+renderHistory();
+renderTemplates();
+updateTx();
+}
+function mark(id,value){
+let t=data.templates.find(x=>x.id===id);
+if(!t)return;
+if(!value){
+alert('Recorded transaction को History से सुरक्षित रखने के लिए checklist में undo बंद है। गलत entry हो तो नई correcting transaction जोड़ें।');
+render();return;
+}
+let choices=data.accounts.map((a,i)=>(i+1)+'. '+a.name+' ('+money(a.balance)+')').join('\n');
+let ans=prompt('किस account में '+t.name+' record करना है?\n'+choices+'\nAccount number लिखें:','1');
+if(ans===null){render();return}
+let a=data.accounts[Number(ans)-1];
+if(!a){alert('Invalid account');render();return}
+if(t.kind==='expense'&&a.balance<t.amount){
+if(!confirm('Account balance कम है। फिर भी record करें?')){render();return}
+}
+a.balance+=t.kind==='income'?t.amount:-t.amount;
+data.checked[id]=true;
+data.transactions.unshift({id:uid(),month:data.currentMonth,date:new Date().toISOString(),kind:t.kind,name:t.name,amount:t.amount,from:a.name,accountId:a.id,templateId:id});
+save();render();
+}
+function updateTx(){
+let type=document.getElementById('txType').value;
+document.getElementById('destinationBox').classList.toggle('hidden',!['saving','transfer'].includes(type));
+let a=document.getElementById('txAccount'),b=document.getElementById('txDestination');
+let prev=a.value,prev2=b.value;
+let options=data.accounts.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join('');
+a.innerHTML=options;b.innerHTML=options;
+if(data.accounts.some(x=>x.id===prev))a.value=prev;
+if(data.accounts.some(x=>x.id===prev2))b.value=prev2;
+else if(data.accounts.length>1)b.selectedIndex=1;
+}
+function addTransaction(){
+let kind=document.getElementById('txType').value;
+let name=document.getElementById('txName').value.trim()||kind;
+let amount=Number(document.getElementById('txAmount').value);
+let from=account(document.getElementById('txAccount').value);
+let to=account(document.getElementById('txDestination').value);
+if(!Number.isFinite(amount)||amount<=0||!from){alert('Valid amount और account चुनें');return}
+if(['saving','transfer'].includes(kind)&&(!to||to.id===from.id)){alert('अलग destination account चुनें');return}
+if(kind==='income')from.balance+=amount;
+else if(kind==='expense')from.balance-=amount;
+else{from.balance-=amount;to.balance+=amount}
+data.transactions.unshift({id:uid(),month:data.currentMonth,date:new Date().toISOString(),kind,name,amount,from:from.name,to:to?to.name:null});
+document.getElementById('txName').value='';
+document.getElementById('txAmount').value='';
+save();render();
+alert('Transaction saved');
+}
+function renderAccounts(){
+let el=document.getElementById('accountList');
+el.innerHTML='';
+data.accounts.forEach(a=>{
+let row=document.createElement('div');row.className='item';
+let info=document.createElement('div');info.className='info';
+let b=document.createElement('b');b.textContent=a.name;
+let s=document.createElement('span');s.textContent=money(a.balance);
+info.append(b,s);
+let btn=document.createElement('button');btn.className='secondary';btn.textContent='Adjust';
+btn.onclick=()=>{
+let n=prompt('Correct balance for '+a.name+' (₹)',a.balance);
+if(n===null)return;
+let val=Number(n);
+if(!Number.isFinite(val)||val<0){alert('Invalid balance');return}
+let diff=val-a.balance;
+a.balance=val;
+data.transactions.unshift({id:uid(),month:data.currentMonth,date:new Date().toISOString(),kind:'adjustment',name:'Balance adjustment',amount:diff,from:a.name});
+save();render();
+};
+row.append(info,btn);el.append(row);
+});
+}
+function addAccount(){
+let name=document.getElementById('bankName').value.trim();
+let bal=Number(document.getElementById('bankBalance').value||0);
+if(!name||!Number.isFinite(bal)||bal<0){alert('Bank name और सही balance लिखें');return}
+data.accounts.push({id:uid(),name,balance:bal});
+document.getElementById('bankName').value='';
+document.getElementById('bankBalance').value='';
+save();render();
+}
+function renderHistory(){
+let el=document.getElementById('historyList');
+el.innerHTML='';
+if(!data.transactions.length)el.textContent='No transactions yet';
+data.transactions.slice(0,200).forEach(t=>{
+let d=document.createElement('div');d.className='history';
+let dt=new Date(t.date);
+d.textContent=(isNaN(dt)?'':dt.toLocaleDateString('en-IN')+' • ')+t.name+' • '+money(t.amount)+' • '+(t.from||'')+(t.to?' → '+t.to:'');
+el.append(d);
+});
+let m=document.getElementById('monthHistory');m.innerHTML='';
+data.archives.forEach(x=>{
+let p=document.createElement('p');
+p.textContent=x.month+' • Income '+money(x.summary.income)+' • Expenses '+money(x.summary.expense)+' • Savings '+money(x.summary.saving);
+m.append(p);
+});
+if(!data.archives.length)m.textContent='Previous months will appear here.';
+}
+function renderTemplates(){
+let el=document.getElementById('templateList');el.innerHTML='';
+data.templates.forEach(t=>{
+let d=document.createElement('div');d.className='item';
+let label=document.createElement('div');label.className='info';
+label.textContent=t.name+' • '+money(t.amount)+' • '+t.kind;
+let btn=document.createElement('button');btn.className='secondary';btn.textContent='Edit';
+btn.onclick=()=>{
+let n=prompt('Item name',t.name);if(n===null)return;
+let a=prompt('Monthly amount ₹',t.amount);if(a===null)return;
+if(!n.trim()||!Number.isFinite(Number(a))||Number(a)<0){alert('Invalid details');return}
+t.name=n.trim();t.amount=Number(a);save();render();
+};
+d.append(label,btn);el.append(d);
+});
+}
+function addTemplate(){
+let name=document.getElementById('newName').value.trim();
+let amount=Number(document.getElementById('newAmount').value);
+let kind=document.getElementById('newKind').value;
+if(!name||!Number.isFinite(amount)||amount<=0){alert('Name और amount भरें');return}
+data.templates.push({id:uid(),name,amount,kind});
+document.getElementById('newName').value='';
+document.getElementById('newAmount').value='';
+save();render();
+}
+function backup(){
+let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+let url=URL.createObjectURL(blob);
+let a=document.createElement('a');
+a.href=url;a.download='money-manager-backup-'+data.currentMonth+'.json';
+a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function restore(e){
+let file=e.target.files[0];if(!file)return;
+let reader=new FileReader();
+reader.onload=()=>{
+try{
+let obj=JSON.parse(reader.result);
+if(!Array.isArray(obj.accounts)||!Array.isArray(obj.transactions)||!Array.isArray(obj.templates))throw Error();
+if(!confirm('Current data को backup से replace करना है?'))return;
+data=obj;save();load();render();alert('Backup restored');
+}catch(err){alert('Invalid backup file')}
+};
+reader.readAsText(file);
+}
+function tab(id){
+['home','accounts','history','settings'].forEach(x=>{
+document.getElementById(x).classList.toggle('hidden',x!==id);
+document.getElementById('btn-'+x).classList.toggle('active',x===id);
+});
+render();
+}
+load();tab('home');
+</script>
+</body>
+</html>
